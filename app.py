@@ -42,3 +42,8 @@ def get_user(username):
 def search():
     disciplina = request.args.get('disciplina')
     return disciplina, 200
+
+
+# Atividades
+
+
