@@ -143,6 +143,11 @@ def update_user():
     data = request.get_json()
 
     if not data['username']:
+        return 'Favor informar o nome do usuário.', 401
+
+    usuario = col_users.find_one({'username':data['username']})
+
+    if not usuario:
         return 'Não existe usuário ' + data['username'], 401
     
     if data['name']:
