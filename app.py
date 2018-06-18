@@ -211,22 +211,22 @@ def set_comment_question(question_id):
 
 
 #Exercicio07
-@app.route('/v1/pablo/questions/search/', methods=['GET'])
-def search_questions():
-    disciplina = request.args.get('disciplina')
-    ano = request.args.get('ano')
+#@app.route('/v1/pablo/questions/search/', methods=['GET'])
+#def search_questions():
+#   disciplina = request.args.get('disciplina')
+#    ano = request.args.get('ano')
 
-    if (disciplina and isinstance(disciplina, int)) and (ano and isinstance(ano, int)):
-        questions = col_questions.find({'$or':[{'disciplina':disciplina}, {'ano':ano}]}, {'id':1,'disciplina':1,'ano':1})
-        return json_util.dumps(questions), 200
-    else if (disciplina and isinstance(disciplina, int)):
-        questions = col_questions.find({'disciplina':disciplina}, {'id':1,'disciplina':1,'ano':1})
-        return json_util.dumps(questions), 200
-    else if (ano and isinstance(ano, int)):
-        questions = col_questions.find({'ano':ano}, {'id':1,'disciplina':1,'ano':1})
-        return json_util.dumps(questions), 200
-    else:
-        return 'Os dados enviados estão inválidos', 400
+#    if (disciplina and isinstance(disciplina, int)) and (ano and isinstance(ano, int)):
+#        questions = col_questions.find({'$or':[{'disciplina':disciplina}, {'ano':ano}]}, {'id':1,'disciplina':1,'ano':1})
+#        return json_util.dumps(questions), 200
+#    else if (disciplina and isinstance(disciplina, int)):
+#        questions = col_questions.find({'disciplina':disciplina}, {'id':1,'disciplina':1,'ano':1})
+#        return json_util.dumps(questions), 200
+#    else if (ano and isinstance(ano, int)):
+#        questions = col_questions.find({'ano':ano}, {'id':1,'disciplina':1,'ano':1})
+#        return json_util.dumps(questions), 200
+#    else:
+#        return 'Os dados enviados estão inválidos', 400
         
 
 
