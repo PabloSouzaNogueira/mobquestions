@@ -52,7 +52,7 @@ def token():
     return json_util.dumps(g.parsed_token), 200
 
 @app.route('/', methods=['GET'])
-@jwt_required
+#@jwt_required
 def index():
     res = col_users.find({})
     return json_util.dumps(list(res)), 200
