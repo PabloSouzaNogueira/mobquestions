@@ -142,17 +142,19 @@ def authenticate_user():
 def update_user():
     data = request.get_json()
 
-    if data['username']:
-        if data['name']:
-            col_users.update_one({'username':data['username']}, {'$set':{'name': data['name']} })
-        if data['email']:
-            col_users.update_one({'username':data['username']}, {'$set':{'email': data['email']} })
-        if data['phones']:
-            col_users.update_one({'username':data['username']}, {'$set':{'phones': data['phones']} })
-        
-        return 'Usuário atualizado!', 200
-    else:
+    if not data['username']:
         return 'Não existe usuário ' + data['username'], 401
+    
+    if data['name']:
+        col_users.update_one({'username':data['username']}, {'$set':{'name': data['name']} })
+    if data['email']:
+        col_users.update_one({'username':data['username']}, {'$set':{'email': data['email']} })
+    if data['phones']:
+        col_users.update_one({'username':data['username']}, {'$set':{'phones': data['phones']} })
+        
+    return 'Usuário atualizado!', 200
+    
+        
 
 
 #Exercicio04
