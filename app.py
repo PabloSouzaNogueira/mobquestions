@@ -138,7 +138,7 @@ def authenticate_user():
 
 #Exercício 03
 @app.route('/v1/pablo/user/update', methods=['POST']) 
-#@jwt_required
+@jwt_required
 def update_user():
     data = request.get_json()
 
@@ -254,3 +254,13 @@ def remove_field_comment(question_id):
     col_questions.update_one({'id':question_id}, {'$unset':{'comments':1}})
 
     return 'OK'
+
+
+@app.route('/v1/pablo/allquestions', methods=['GET'])
+def get_question():
+    question = col_questions.find({},{'id':1})
+
+    if question:
+        return json_util.dumps(question), 200
+    else:
+        return 'Não foi possível encontrar as questões!', 404
