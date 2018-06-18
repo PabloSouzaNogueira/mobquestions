@@ -138,7 +138,7 @@ def authenticate_user():
 
 #Exercício 03
 @app.route('/v1/pablo/user/update', methods=['POST']) 
-@jwt_required
+#@jwt_required
 def update_user():
     data = request.get_json()
 
