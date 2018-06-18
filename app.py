@@ -138,6 +138,7 @@ def authenticate_user():
 
 #Exercício 03
 @app.route('/v1/pablo/user/update', methods=['POST']) 
+@jwt_required
 def update_user():
     data = request.get_json()
 
@@ -183,6 +184,7 @@ def get_question(question_id):
 
 #Exercício06
 @app.route('/v1/pablo/questions/<question_id>', methods=['POST'])
+@jwt_required
 def set_comment_question(question_id):
     data = request.get_json()
     question = col_questions.find_one({'id':question_id})
@@ -209,14 +211,22 @@ def set_comment_question(question_id):
 
 
 #Exercicio07
-@app.route('/v1/pablo/questions/search', methods=['POST'])
+@app.route('/v1/pablo/questions/search/', methods=['GET'])
 def search_questions():
-    data = request.get_json()
+    disciplina = request.args.get('disciplina')
+    ano = request.args.get('ano')
 
-    #if data['disciplina']:
-    questions = col_questions.find({'$or':[{'disciplina':data['disciplina']}, {'ano':data['ano']}]}, {'id':1,'disciplina':1,'ano':1})
-
-    return json_util.dumps(questions), 200
+    if (disciplina and isinstance(disciplina, int)) and (ano and isinstance(ano, int)):
+        questions = col_questions.find({'$or':[{'disciplina':disciplina}, {'ano':ano}]}, {'id':1,'disciplina':1,'ano':1})
+        return json_util.dumps(questions), 200
+    else if (disciplina and isinstance(disciplina, int)):
+        questions = col_questions.find({'disciplina':disciplina}, {'id':1,'disciplina':1,'ano':1})
+        return json_util.dumps(questions), 200
+    else if (ano and isinstance(ano, int)):
+        questions = col_questions.find({'ano':ano}, {'id':1,'disciplina':1,'ano':1})
+        return json_util.dumps(questions), 200
+    else:
+        return 'Os dados enviados estão inválidos', 400
         
 
 
