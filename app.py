@@ -257,7 +257,7 @@ def remove_field_comment(question_id):
 
 
 @app.route('/v1/pablo/allquestions', methods=['GET'])
-def get_question():
+def get_allquestion():
     question = col_questions.find({},{'id':1})
 
     if question:
