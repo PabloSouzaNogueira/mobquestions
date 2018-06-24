@@ -8,6 +8,14 @@ from bson import json_util
 from config import MONGO_URI
 from auth import *
 
+import os
+import redis
+
+rcache = redis.Redis(
+            host='redis-19130.c1.ap-southeast-1-1.ec2.cloud.redislabs.com', 
+            port=19130,
+            password='4NdaP8ra7wuj2lZOfGK5Yi1Et8JhQX45')
+
 
 app = Flask(__name__)
 app.config['MONGO_URI'] = MONGO_URI
@@ -20,7 +28,7 @@ mongo = PyMongo(app)
 
 col_users = mongo.db.users
 col_questions = mongo.db.questions
-col_tokens = mongo.db.tokens        # refresh tokens
+col_tokens = mongo.db.tokens 
 
 
 def authenticate(username, password):
@@ -51,30 +59,6 @@ def signin():
 def token():    
     return json_util.dumps(g.parsed_token), 200
 
-@app.route('/', methods=['GET'])
-#@jwt_required
-def index():
-    res = col_users.find({})
-    return json_util.dumps(list(res)), 200
-
-@app.route('/users', methods=['POST'])
-def create_user():
-    data = request.get_json()
-    data['password'] = generate_password_hash(data['password'])
-    col_users.insert_one(data)
-    return 'usuario ' + data['username'] + ' criado.', 201
-
-@app.route('/users/<username>', methods=['GET'])
-def get_user(username):
-    return username, 200
-
-# rota para exemplificar como utilizar obter variaveis
-# de url. teste acessando 
-# http://localhost:8088/questions/search?disciplina=BancoDeDados 
-@app.route('/questions/search', methods=['GET'])
-def search():
-    disciplina = request.args.get('disciplina')
-    return disciplina, 200
 
 @app.route('/refresh_token', methods=['GET'])
 @jwt_refresh_required
@@ -92,13 +76,21 @@ def refresh_token():
         return "Unauthorized", 401
 
 
-# Atividades
+
+@app.route('/', methods=['GET'])
+#@jwt_required
+def index():
+    res = col_users.find({})
+    return json_util.dumps(list(res)), 200
+
+
+
 
 
 # Atividades
 
 #Exercício 00
-@app.route('/v1/pablo/users/', methods=['PUT'])
+@app.route('/v1/users/', methods=['POST'])
 def insert_user():
     data = request.get_json()
     res = col_users.find({'username':data['username']})
@@ -111,7 +103,7 @@ def insert_user():
         return 'Usuário ' + data['username'] + ' criado!', 201
 
 #Exercício 01
-@app.route('/v1/pablo/users/<username>', methods=['GET'])
+@app.route('/v1/users/<username>', methods=['GET'])
 def search_user(username):
     res = col_users.find({'username':username})
     
@@ -122,7 +114,7 @@ def search_user(username):
         return 'Usuário ' + username + ' não existe!', 404
 
 #Exercício 02
-@app.route('/v1/pablo/user/authenticate', methods=['POST'])
+@app.route('/v1/user/authenticate', methods=['POST'])
 def authenticate_user():
     data = request.get_json()
     
@@ -137,49 +129,46 @@ def authenticate_user():
         return 'Favor informar usuário e senha.', 401
 
 #Exercício 03
-@app.route('/v1/pablo/user/update', methods=['POST']) 
+@app.route('/v1/user/update/<username>', methods=['PUT']) 
 @jwt_required
-def update_user():
+def update_user(username):
     data = request.get_json()
 
-    if not data['username']:
+    if not username:
         return 'Favor informar o nome do usuário.', 401
 
-    usuario = col_users.find_one({'username':data['username']})
+    usuario = col_users.find_one({'username':username})
 
     if not usuario:
-        return 'Não existe usuário ' + data['username'], 401
+        return 'Não existe usuário ' + username, 401
     
-    if data['name']:
-        col_users.update_one({'username':data['username']}, {'$set':{'name': data['name']} })
-    if data['email']:
-        col_users.update_one({'username':data['username']}, {'$set':{'email': data['email']} })
-    if data['phones']:
-        col_users.update_one({'username':data['username']}, {'$set':{'phones': data['phones']} })
+    if 'name' in data and data['name']:
+        col_users.update_one({'username':username}, {'$set':{'name': data['name']} })
+    if 'email' in data and data['email']:
+        col_users.update_one({'username':username}, {'$set':{'email': data['email']} })
+    if 'phones' in data and data['phones']:
+        col_users.update_one({'username':username}, {'$set':{'phones': data['phones']} })
         
-    return 'Usuário atualizado!', 200
-    
-        
-
+    return 'Usuário atualizado!', 200          
 
 #Exercicio04
-@app.route('/v1/pablo/user/updatepassword', methods=['PATCH'])
-def update_password_user():
+@app.route('/v1/user/updatepassword/<username>', methods=['PATCH'])
+def update_password_user(username):
     data = request.get_json()
 
-    if data['username']:
-        user = col_users.find_one({'username':data['username']})
+    if username:
+        user = col_users.find_one({'username':username})
         if user:
             hash_password = generate_password_hash(data['password'])
-            col_users.update_one({'username':data['username']}, {'$set':{'password': hash_password}})
+            col_users.update_one({'username':username}, {'$set':{'password': hash_password}})
             return 'Senha atualizada!', 200
         else:
-            return 'Não existe usuário ' + data['username'], 403
+            return 'Não existe usuário ' + username, 403
     else:
         return 'Favor informar usuário.', 401
 
 #Exercicio05
-@app.route('/v1/pablo/questions/<question_id>', methods=['GET'])
+@app.route('/v1/questions/<question_id>', methods=['GET'])
 def get_question(question_id):
     question = col_questions.find_one({'id':question_id})
 
@@ -190,11 +179,11 @@ def get_question(question_id):
 
 
 #Exercício06
-@app.route('/v1/pablo/questions/<question_id>', methods=['POST'])
+@app.route('/v1/comment', methods=['POST'])
 @jwt_required
-def set_comment_question(question_id):
+def set_comment_question():
     data = request.get_json()
-    question = col_questions.find_one({'id':question_id})
+    question = col_questions.find_one({'id':data['question_id']})
     user = col_users.find_one({'username':data['username']})
 
     if question:
@@ -203,12 +192,12 @@ def set_comment_question(question_id):
             if 'comments' not in question:
                 comment = []
                 comment.append({'username': data['username'], 'message': data['message']})
-                col_questions.update_one({'id':question_id}, {'$set':{'comments':comment}})
+                col_questions.update_one({'id':data['question_id']}, {'$set':{'comments':comment}})
             else:
                 comment = {'username': data['username'], 'message': data['message']}
-                col_questions.update_one({'id':question_id}, {'$push':{'comments':comment}})
+                col_questions.update_one({'id':data['question_id']}, {'$push':{'comments':comment}})
 
-            question = col_questions.find_one({'id':question_id})
+            question = col_questions.find_one({'id':data['question_id']})
             return json_util.dumps(question), 200
 
         else:
@@ -218,7 +207,7 @@ def set_comment_question(question_id):
 
 
 #Exercicio07
-@app.route('/v1/pablo/questions/search/', methods=['GET'])
+@app.route('/v1/questions/search/', methods=['GET'])
 def search_questions():
     disciplina = request.args.get('disciplina')
     ano = request.args.get('ano')
@@ -251,7 +240,7 @@ def search_questions():
         
 
 #Exercicio09
-@app.route('/v1/pablo/questions/answer/<question_id>', methods=['POST'])
+@app.route('/v1/questions/answer/<question_id>', methods=['POST'])
 def set_answer_question(question_id):
     data = request.get_json()
     user = col_users.find_one({'username':data['username']})
@@ -280,21 +269,23 @@ def set_answer_question(question_id):
             col_users.update_one({'username':data['username'], "answers.question_id" : question_id }, {'$set':{'answers.$.answer':data['answer']}})
         else:
             col_users.update_one({'username':data['username']}, {'$push':{'answers':answers}})
+    
+
+    if 'contador_resposta' in question:
+        contador_resposta = 1 + question['contador_resposta']
+        col_questions.update_one({'id':question_id},{'$set':{'contador_resposta':contador_resposta}})
+    else:
+        col_questions.update_one({'id':question_id},{'$set':{'contador_resposta':1}})
         
     
     if question['resposta'] == data['answer']:
         return 'Resposta correta!', 200
     else:
-        return 'Resposta errada!', 200
-
-
-    #user = col_users.find_one({'username':data['username']})
-    #return json_util.dumps(user), 200
-    
+        return 'Resposta errada!', 200  
 
 
 #Exercicio10
-@app.route('/v1/pablo/questions/answers', methods=['GET'])
+@app.route('/v1/questions/answers', methods=['GET'])
 @jwt_required
 def search_answers_question():
     user_autenticado = g.parsed_token
@@ -307,22 +298,41 @@ def search_answers_question():
         return 'Este usuário não respondeu nenhuma questão.', 404
 
 
+#Exercicio11
+@app.route('/v1/featured_questions', methods=['POST'])
+def update_cache_question():
+    featured_questions = col_questions.find({'contador_resposta': { '$gt': 0 }}).sort([('contador_resposta',-1)]).limit(5)
+    
+    if rcache:
+        rcache.set('featured_questions', json_util.dumps(featured_questions))
+    
+    featured_questions = col_questions.find({'contador_resposta': { '$gt': 0 }}).sort([('contador_resposta',-1)]).limit(5)
+
+    return json_util.dumps(featured_questions), 200
+
+#Exercicio12
+@app.route('/v1/featured_questions', methods=['GET'])
+def get_cache_question():   
+    if rcache and rcache.get('featured_questions'):
+        return rcache.get('featured_questions'), 200
+    else:
+        featured_questions = col_questions.find({'contador_resposta': { '$gt': 0 }}).sort([('contador_resposta',-1)]).limit(5)  
+        return json_util.dumps(featured_questions), 203
 
 #Opicionais
 
 # Deletar usuarios
-@app.route('/v1/delete', methods=['GET'])
+@app.route('/v1/delete/users', methods=['GET'])
 def delete_users():
     col_users.remove()
-    return 'OK'
+    return 'OK', 200
 
 #Deletar campo comment na question
 @app.route('/v1/removecomment/<question_id>', methods=['GET'])
 def remove_field_comment(question_id):
     question = col_users.find_one({'username':question_id})
     col_users.update_one({'username':question_id}, {'$unset':{'answers':1}})
-
-    return 'OK'
+    return 'OK', 200
 
 
 @app.route('/v1/pablo/allquestions', methods=['GET'])
