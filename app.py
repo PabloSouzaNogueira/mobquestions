@@ -202,10 +202,10 @@ def set_comment_question(question_id):
             
             if 'comments' not in question:
                 comment = []
-                comment.append(json_util.dumps({'username': data['username'], 'message': data['message']}))
+                comment.append({'username': data['username'], 'message': data['message']})
                 col_questions.update_one({'id':question_id}, {'$set':{'comments':comment}})
             else:
-                comment = json_util.dumps({'username': data['username'], 'message': data['message']})
+                comment = {'username': data['username'], 'message': data['message']}
                 col_questions.update_one({'id':question_id}, {'$push':{'comments':comment}})
 
             question = col_questions.find_one({'id':question_id})
@@ -245,11 +245,66 @@ def search_questions():
             questions = col_questions.find({'ano':conv_ano}, {'id':1,'disciplina':1,'ano':1})
             return json_util.dumps(questions), 200
         except:
-            return 'Os dados enviados estão inválidos ', 400
+            return 'Os dados enviados estão inválidos', 400
     else:
         return 'Os dados enviados estão inválidos', 400
         
 
+#Exercicio09
+@app.route('/v1/pablo/questions/answer/<question_id>', methods=['POST'])
+def set_answer_question(question_id):
+    data = request.get_json()
+    user = col_users.find_one({'username':data['username']})
+    question = col_questions.find_one({'id':question_id})
+
+    if not user:
+        return 'Não existe usuário ' + data['username'], 401
+    
+    if not question:
+        return 'Não existe a questão' + question_id, 401
+
+    if not data['answer']:
+        return 'Favor informar uma resposta', 401
+
+
+    if 'answers' not in user:
+        answers = []
+        answers.append({'question_id': question_id, 'answer': data['answer']})
+        col_users.update_one({'username':data['username']}, {'$set':{'answers':answers}})
+
+    else:
+        answers = {'question_id': question_id, 'answer': data['answer']}
+        question_in_user = col_users.find_one({'username':data['username'] , 'answers': {'$elemMatch': {'question_id': question_id} } })
+
+        if question_in_user:
+            col_users.update_one({'username':data['username'], "answers.question_id" : question_id }, {'$set':{'answers.$.answer':data['answer']}})
+        else:
+            col_users.update_one({'username':data['username']}, {'$push':{'answers':answers}})
+        
+    
+    if question['resposta'] == data['answer']:
+        return 'Resposta correta!', 200
+    else:
+        return 'Resposta errada!', 200
+
+
+    #user = col_users.find_one({'username':data['username']})
+    #return json_util.dumps(user), 200
+    
+
+
+#Exercicio10
+@app.route('/v1/pablo/questions/answers', methods=['GET'])
+@jwt_required
+def search_answers_question():
+    user_autenticado = g.parsed_token
+
+    user = col_users.find_one({'username':user_autenticado['username']}, {'answers':1})
+
+    if user:
+        return json_util.dumps(user), 200
+    else:
+        return 'Este usuário não respondeu nenhuma questão.', 404
 
 
 
@@ -264,8 +319,8 @@ def delete_users():
 #Deletar campo comment na question
 @app.route('/v1/removecomment/<question_id>', methods=['GET'])
 def remove_field_comment(question_id):
-    question = col_questions.find_one({'id':question_id})
-    col_questions.update_one({'id':question_id}, {'$unset':{'comments':1}})
+    question = col_users.find_one({'username':question_id})
+    col_users.update_one({'username':question_id}, {'$unset':{'answers':1}})
 
     return 'OK'
 

@@ -9,7 +9,7 @@ import jwt
 from jwt.exceptions import DecodeError, ExpiredSignature
 
 
-token_timeout = 5 # time in minutes
+token_timeout = 50 # time in minutes
 jwt_algorithm = 'HS256'
 SECRET_KEY = 'super-secret'
 
