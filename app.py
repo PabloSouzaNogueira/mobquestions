@@ -11,6 +11,8 @@ from auth import *
 import os
 import redis
 
+os.getenv('FLASK_TESTING')=='1'
+
 rcache = redis.Redis(
             host='redis-19130.c1.ap-southeast-1-1.ec2.cloud.redislabs.com', 
             port=19130,
@@ -93,6 +95,10 @@ def index():
 @app.route('/v1/users/', methods=['POST'])
 def insert_user():
     data = request.get_json()
+
+    if 'username' not in data:
+        return 'Favor informar o username', 400
+
     res = col_users.find({'username':data['username']})
 
     if (len(list(res)) > 0):
