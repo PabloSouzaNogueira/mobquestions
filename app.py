@@ -5,32 +5,36 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from bson import json_util
 
-from config import MONGO_URI
+from config import MONGO_URI, MONGO_URI_TESTS, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 from auth import *
 
 import os
 import redis
 
-os.getenv('FLASK_TESTING')=='1'
-
-rcache = redis.Redis(
-            host='redis-19130.c1.ap-southeast-1-1.ec2.cloud.redislabs.com', 
-            port=19130,
-            password='4NdaP8ra7wuj2lZOfGK5Yi1Et8JhQX45')
 
 
-app = Flask(__name__)
-app.config['MONGO_URI'] = MONGO_URI
-app.config['DEBUG'] = True
+rcache = redis.Redis( host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
 
-app_context = app.app_context()
-app_context.push()
+def create_app(testing = False):
+    app = Flask(__name__)
+    if os.getenv('FLASK_TESTING') and os.getenv('FLASK_TESTING') == '1':
+        app.config['MONGO_URI'] = MONGO_URI_TESTS
+    else:
+        app.config['MONGO_URI'] = MONGO_URI
+        
+    app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
+    app_context = app.app_context()
+    app_context.push()        
+    return app
 
+mongo = None
+app = create_app()
 mongo = PyMongo(app)
 
 col_users = mongo.db.users
 col_questions = mongo.db.questions
 col_tokens = mongo.db.tokens 
+
 
 
 def authenticate(username, password):
@@ -92,7 +96,7 @@ def index():
 # Atividades
 
 #Exercício 00
-@app.route('/v1/users/', methods=['POST'])
+@app.route('/v1/create_user', methods=['POST'])
 def insert_user():
     data = request.get_json()
 
@@ -102,14 +106,14 @@ def insert_user():
     res = col_users.find({'username':data['username']})
 
     if (len(list(res)) > 0):
-        return 'Usuário ' + data['username'] + ' já existe!', 203
+        return 'Usuário ' + data['username'] + ' já existe!', 409
     else:
         data['password'] = generate_password_hash(data['password'])
         col_users.insert_one(data)
-        return 'Usuário ' + data['username'] + ' criado!', 201
+        return 'Usuário ' + data['username'] + ' criado!', 200
 
-#Exercício 01
-@app.route('/v1/users/<username>', methods=['GET'])
+#Exercício01
+@app.route('/v1/users/<username>', methods=['POST'])
 def search_user(username):
     res = col_users.find({'username':username})
     
@@ -119,7 +123,7 @@ def search_user(username):
     else:
         return 'Usuário ' + username + ' não existe!', 404
 
-#Exercício 02
+#Exercício02
 @app.route('/v1/user/authenticate', methods=['POST'])
 def authenticate_user():
     data = request.get_json()
@@ -134,7 +138,7 @@ def authenticate_user():
     else:
         return 'Favor informar usuário e senha.', 401
 
-#Exercício 03
+#Exercício03
 @app.route('/v1/user/update/<username>', methods=['PUT']) 
 @jwt_required
 def update_user(username):
@@ -246,11 +250,16 @@ def search_questions():
         
 
 #Exercicio09
-@app.route('/v1/questions/answer/<question_id>', methods=['POST'])
-def set_answer_question(question_id):
+@app.route('/v1/questions/answer', methods=['POST'])
+#@jwt_required
+def set_answer_question():
     data = request.get_json()
     user = col_users.find_one({'username':data['username']})
-    question = col_questions.find_one({'id':question_id})
+
+    if not data['question_id']:
+        return 'Favor informar uma questão', 401
+
+    question = col_questions.find_one({'id':data['question_id']})
 
     if not user:
         return 'Não existe usuário ' + data['username'], 401
@@ -261,33 +270,36 @@ def set_answer_question(question_id):
     if not data['answer']:
         return 'Favor informar uma resposta', 401
 
-
+    if data['answer'] not in question['options']:
+        return 'Não existe esta opção de resposta', 400
+    
     if 'answers' not in user:
         answers = []
-        answers.append({'question_id': question_id, 'answer': data['answer']})
+        answers.append({'question_id': data['question_id'], 'answer': data['answer']})
         col_users.update_one({'username':data['username']}, {'$set':{'answers':answers}})
 
     else:
-        answers = {'question_id': question_id, 'answer': data['answer']}
-        question_in_user = col_users.find_one({'username':data['username'] , 'answers': {'$elemMatch': {'question_id': question_id} } })
+        answers = {'question_id': data['question_id'], 'answer': data['answer']}
+        question_in_user = col_users.find_one({'username':data['username'] , 'answers': {'$elemMatch': {'question_id': data['question_id'] } } })
 
         if question_in_user:
-            col_users.update_one({'username':data['username'], "answers.question_id" : question_id }, {'$set':{'answers.$.answer':data['answer']}})
+            col_users.update_one({'username':data['username'], "answers.question_id" : data['question_id'] }, {'$set':{'answers.$.answer':data['answer']}})
         else:
             col_users.update_one({'username':data['username']}, {'$push':{'answers':answers}})
     
 
     if 'contador_resposta' in question:
         contador_resposta = 1 + question['contador_resposta']
-        col_questions.update_one({'id':question_id},{'$set':{'contador_resposta':contador_resposta}})
+        col_questions.update_one({'id':data['question_id'] },{'$set':{'contador_resposta':contador_resposta}})
     else:
-        col_questions.update_one({'id':question_id},{'$set':{'contador_resposta':1}})
+        col_questions.update_one({'id':data['question_id'] },{'$set':{'contador_resposta':1}})
         
     
-    if question['resposta'] == data['answer']:
+    if question['resposta'] == data['answer'][:1].upper():
         return 'Resposta correta!', 200
     else:
         return 'Resposta errada!', 200  
+   
 
 
 #Exercicio10
