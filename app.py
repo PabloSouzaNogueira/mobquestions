@@ -17,10 +17,12 @@ rcache = redis.Redis( host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
 
 def create_app(testing = False):
     app = Flask(__name__)
+    
     if os.getenv('FLASK_TESTING') and os.getenv('FLASK_TESTING') == '1':
         app.config['MONGO_URI'] = MONGO_URI_TESTS
     else:
         app.config['MONGO_URI'] = MONGO_URI
+
         
     app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
     app_context = app.app_context()
@@ -113,7 +115,7 @@ def insert_user():
         return 'Usuário ' + data['username'] + ' criado!', 200
 
 #Exercício01
-@app.route('/v1/users/<username>', methods=['POST'])
+@app.route('/v1/users/<username>', methods=['GET'])
 def search_user(username):
     res = col_users.find({'username':username})
     
